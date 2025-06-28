@@ -210,6 +210,33 @@ if not settings.enable_memory_optimised_imports:
         DbtSourceAwsEcsOperator = MissingPackage("cosmos.operators.aws_ecs.DbtSourceAwsEcsOperator", "aws-ecs")
 
     try:
+        from cosmos.operators.aws_batch import (
+            DbtBuildAwsBatchOperator,
+            DbtLSAwsBatchOperator,
+            DbtRunAwsBatchOperator,
+            DbtRunOperationAwsBatchOperator,
+            DbtSeedAwsBatchOperator,
+            DbtSnapshotAwsBatchOperator,
+            DbtSourceAwsBatchOperator,
+            DbtTestAwsBatchOperator,
+        )
+    except ImportError:  # pragma: no cover
+        DbtBuildAwsBatchOperator = MissingPackage("cosmos.operators.aws_batch.DbtBuildAwsBatchOperator", "aws-batch")
+        DbtLSAwsBatchOperator = MissingPackage("cosmos.operators.aws_batch.DbtLSAwsBatchOperator", "aws-batch")
+        DbtRunAwsBatchOperator = MissingPackage("cosmos.operators.aws_batch.DbtRunAwsBatchOperator", "aws-batch")
+        DbtRunOperationAwsBatchOperator = MissingPackage(
+            "cosmos.operators.aws_batch.DbtRunOperationAwsBatchOperator",
+            "aws-batch",
+        )
+        DbtSeedAwsBatchOperator = MissingPackage("cosmos.operators.aws_batch.DbtSeedAwsBatchOperator", "aws-batch")
+        DbtSnapshotAwsBatchOperator = MissingPackage(
+            "cosmos.operators.aws_batch.DbtSnapshotAwsBatchOperator",
+            "aws-batch",
+        )
+        DbtTestAwsBatchOperator = MissingPackage("cosmos.operators.aws_batch.DbtTestAwsBatchOperator", "aws-batch")
+        DbtSourceAwsBatchOperator = MissingPackage("cosmos.operators.aws_batch.DbtSourceAwsBatchOperator", "aws-batch")
+
+    try:
         from cosmos.operators.gcp_cloud_run_job import (
             DbtBuildGcpCloudRunJobOperator,
             DbtCloneGcpCloudRunJobOperator,
