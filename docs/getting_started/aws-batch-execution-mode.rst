@@ -5,6 +5,9 @@ AWS Batch Execution Mode
 
 This tutorial will guide you through the steps required to use AWS Batch as the Execution mode for your dbt code with Astronomer Cosmos. 
 
+.. figure:: ./_static/aws_batch_cosmos_executor.svg
+    :width: 800
+
 Prerequisites
 -------------
 1. Docker with docker daemon (Docker Desktop on MacOS). Follow the `Docker installation guide <https://docs.docker.com/engine/install/>`_.
