@@ -68,7 +68,7 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
             # AWS Connectivity
             aws_conn_id: str = DEFAULT_CONN_ID,
             region_name: str = None,
-            verify: bool = None,            
+            verify: bool = None,
             # Other Arguments
             environment_variables: dict[str, Any] | None = None,
             container_overrides: dict[str, Any] | None = None,
