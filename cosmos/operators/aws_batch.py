@@ -27,10 +27,7 @@ logger = get_logger(__name__)
 
 DEFAULT_CONN_ID = "aws_default"
 DEFAULT_JOB_NAME = "dbt"
-DEFAULT_JOB_QUEUE = ""
-DEFAULT_JOB_DEFINITION = ""
 DEFAULT_TAGS: dict[str, str] = {}
-
 
 
 try:
@@ -39,9 +36,9 @@ except ImportError:
     from airflow.models import BaseOperator  # Airflow 2
 
 try:
-    from airflow.sdk.bases.hooks.base import BaseHook # Airflow 3
+    from airflow.sdk.bases.hooks.base import BaseHook  # Airflow 3
 except ImportError:
-    from airflow.hooks.base import BaseHook # Airflow 2
+    from airflow.hooks.base import BaseHook  # Airflow 2
 
 try:
     from airflow.providers.amazon.aws.operators.batch import BatchOperator
@@ -51,37 +48,38 @@ except ImportError:  # pragma: no cover
         "separately or with `pip install astronomer-cosmos[...,aws-ecs]`."
     )  # pragma: no cover
 
+
 class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
     """
     Executes a dbt core cli command in an AWS Batch Task with dbt installed on it.
 
     """
 
-    template_fields: Sequence[str] = tuple (
-        list(AbstractDbtBase.template_fields) + list(BatchOperator.template_fields)
+    template_fields: Sequence[str] = tuple(
+        list(AbstractDbtBase.template_fields) +
+        list(BatchOperator.template_fields)
     )
 
     def __init__(
             self,
+            job_queue: str,
+            job_definition: str,
+            job_name: str = DEFAULT_JOB_NAME,
             # AWS Connectivity
             aws_conn_id: str = DEFAULT_CONN_ID,
             region_name: str = None,
-            verify: bool = None,
-            # Arguments required by BatchOperator
-            job_name: str = DEFAULT_JOB_NAME,
-            job_queue: str = DEFAULT_JOB_QUEUE,
-            job_definition: str = DEFAULT_JOB_DEFINITION,
+            verify: bool = None,            
             # Other Arguments
             environment_variables: dict[str, Any] | None = None,
             container_overrides: dict[str, Any] | None = None,
             # container_overrides can be overriden with these paramaeters
             vcpus: int = None,
             memory: int = None,
-            # 
+            #
             profile_config: ProfileConfig | None = None,
             command: list[str] | None = None,
             **kwargs: Any,
-            ) -> None: 
+    ) -> None:
         self.profile_config = profile_config
         self.command = command
         self.job_name = job_name
@@ -101,7 +99,8 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
         if self.memory:
             container_details["memory"] = self.memory
         if self.environment_variables:
-            container_details["environment"] = [{"name": key, "value": value} for key, value in self.environment_variables.items()]
+            container_details["environment"] = [
+                {"name": key, "value": value} for key, value in self.environment_variables.items()]
         self.container_overrides = {
             **(self.container_overrides or {}),
             **container_details
@@ -114,7 +113,7 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
                 "job_name": job_name,
                 "job_queue": job_queue,
                 "job_definition": job_definition,
-                "container_overrides": self.container_overrides 
+                "container_overrides": self.container_overrides
             }
         )
 
@@ -129,7 +128,8 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
 
         operator_args: set[str] = set()
         for clazz in BatchOperator.__mro__:
-            operator_args.update(inspect.signature(clazz.__init__).parameters.keys())
+            operator_args.update(inspect.signature(
+                clazz.__init__).parameters.keys())
             if clazz == BaseOperator:
                 break
         for arg in operator_args:
@@ -137,7 +137,7 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
                 operator_kwargs[arg] = kwargs[arg]
             except KeyError:
                 pass
-        
+
         base_kwargs = {}
         for arg in {*inspect.signature(AbstractDbtBase.__init__).parameters.keys()}:
             try:
@@ -150,31 +150,33 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
         AbstractDbtBase.__init__(self, **base_kwargs)
         BatchOperator.__init__(self, **operator_kwargs)
 
-    def build_and_run_cmd(self, 
-                          context, 
-                          cmd_flags, 
+    def build_and_run_cmd(self,
+                          context,
+                          cmd_flags,
                           run_as_async: bool = False,
                           async_context: dict[str, Any] | None = None,
-        ) -> Any:
+                          ) -> Any:
         self.build_command(context, cmd_flags)
         self.log.info(f"Running command: {self.command}")
         result = BatchOperator.execute(self, context)
         logger.info(result)
-    
+
     def build_command(self, context: Context, cmd_flags: list[str] | None = None) -> None:
         self.dbt_executable_path = "dbt"
-        dbt_cmd, env_vars = self.build_cmd(context=context, cmd_flags=cmd_flags)
-        #self.environment_variables = {**env_vars, **self.environment_variables}
+        dbt_cmd, env_vars = self.build_cmd(
+            context=context, cmd_flags=cmd_flags)
+        # self.environment_variables = {**env_vars, **self.environment_variables}
         self.command = dbt_cmd
         self.container_overrides['command'] = self.command
-        
+
 
 class DbtBuildAwsBatchOperator(DbtBuildMixin, DbtAwsBatchBaseOperator):
     """
     Executes a dbt core build command.
     """
 
-    template_fields: Sequence[str] = DbtAwsBatchBaseOperator.template_fields + DbtBuildMixin.template_fields  # type: ignore[operator]
+    template_fields: Sequence[str] = DbtAwsBatchBaseOperator.template_fields + \
+        DbtBuildMixin.template_fields  # type: ignore[operator]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -196,7 +198,8 @@ class DbtSeedAwsBatchOperator(DbtSeedMixin, DbtAwsBatchBaseOperator):
     :param full_refresh: dbt optional arg - dbt will treat incremental models as table models
     """
 
-    template_fields: Sequence[str] = DbtAwsBatchBaseOperator.template_fields + DbtSeedMixin.template_fields  # type: ignore[operator]
+    template_fields: Sequence[str] = DbtAwsBatchBaseOperator.template_fields + \
+        DbtSeedMixin.template_fields  # type: ignore[operator]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -225,7 +228,8 @@ class DbtRunAwsBatchOperator(DbtRunMixin, DbtAwsBatchBaseOperator):
     Executes a dbt core run command.
     """
 
-    template_fields: Sequence[str] = DbtAwsBatchBaseOperator.template_fields + DbtRunMixin.template_fields  # type: ignore[operator]
+    template_fields: Sequence[str] = DbtAwsBatchBaseOperator.template_fields + \
+        DbtRunMixin.template_fields  # type: ignore[operator]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -251,7 +255,8 @@ class DbtRunOperationAwsBatchOperator(DbtRunOperationMixin, DbtAwsBatchBaseOpera
         selected macro.
     """
 
-    template_fields: Sequence[str] = DbtAwsBatchBaseOperator.template_fields + DbtRunOperationMixin.template_fields  # type: ignore[operator]
+    template_fields: Sequence[str] = DbtAwsBatchBaseOperator.template_fields + \
+        DbtRunOperationMixin.template_fields  # type: ignore[operator]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
