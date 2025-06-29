@@ -13,7 +13,9 @@ Cosmos can run ``dbt`` commands using five different approaches, called ``execut
 6. **azure_container_instance**: Run ``dbt`` commands from Azure Container Instances managed by Cosmos (requires a pre-existing Docker image)
 7. **gcp_cloud_run_job**: Run ``dbt`` commands from GCP Cloud Run Job instances managed by Cosmos (requires a pre-existing Docker image)
 8. **aws_ecs**: Run ``dbt`` commands from AWS ECS instances managed by Cosmos (requires a pre-existing Docker image)
-9. **airflow_async**: (stable since Cosmos 1.9.0) Run the dbt resources from your dbt project asynchronously, by submitting the corresponding compiled SQLs to Apache Airflow's `Deferrable operators <https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/deferring.html>`__
+9. **aws_batch**: Run ``dbt`` commands from AWS Batch Compute infrastructure, managed by Cosmos (requires a pre-existing Docker image)
+10. **airflow_async**: (stable since Cosmos 1.9.0) Run the dbt resources from your dbt project asynchronously, by submitting the corresponding compiled SQLs to Apache Airflow's `Deferrable operators <https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/deferring.html>`__
+
 
 The choice of the ``execution mode`` can vary based on each user's needs and concerns. For more details, check each execution mode described below.
 
@@ -58,10 +60,15 @@ The choice of the ``execution mode`` can vary based on each user's needs and con
      - Slow
      - High
      - No
+   * - AWS Batch
+     - Slow
+     - High
+     - No
    * - Airflow Async
      - Medium
      - None
      - Yes
+
 
 Local
 -----
@@ -283,6 +290,56 @@ Please refer to the step-by-step guide for using AWS ECS as the execution mode.
         },
     )
 
+AWS Batch
+---------
+
+.. versionadded:: TODO
+
+`AWS Batch <https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html>`_ is a fully managed service that enables you to efficiently run hundreds to thousands of batch computing jobs on AWS. 
+It abstracts away the complexity of provisioning, managing, and scaling the underlying compute infrastructure needed for batch workloads. 
+Under the hood, AWS Batch orchestrates containers using `AWS ECS (Elastic Container Service) <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html>`_ or `AWS EKS (Elastic Kubernetes Service) <https://docs.aws.amazon.com/eks/>`_, but it provides a higher-level interface that simplifies job submission, compute provisioning, dependency management, and retry policies.
+
+The execution mode requires the user to have an AWS environment configured with the following core resources:
+
+#. **Batch Compute Environment** — This defines the actual compute infrastructure (e.g. EC2 On-Demand, EC2 Spot, or Fargate) where jobs will run. You can choose between managed compute environments, where AWS provisions and scales instances for you, or unmanaged environments, where you bring your own EC2 resources. 
+#. **Batch Job Queue** — A logical queue that receives submitted jobs. AWS Batch uses this queue to determine where to place jobs based on priority and compute environment availability. Job queues are linked to one or more compute environments.
+#. **Batch Job Definition** — A specification of how a job should be run. This includes details such as the container image, resource requirements (vCPUs, memory), environment variables, retry strategy, and IAM roles.
+
+These three components work together to execute jobs:
+
+- When a job is submitted (manually or via a scheduler like Apache Airflow), it is placed into a **Job Queue**.
+- The job queue is associated with one or more **Compute Environments**, which AWS Batch evaluates to determine where to run the job based on resource availability and cost considerations.
+- The **Job Definition** provides the template for executing the job — similar to how an ECS task definition works, but designed specifically for one-off, batch-style execution.
+
+This separation of concerns allows AWS Batch to dynamically scale resources and execute jobs in a fault-tolerant, cost-effective manner. Batch automatically provisions and scaled compute resources based on job demands without requiring manual configuration of services or auto-scaling groups.
+In order to use the batch execution mode you must configure the ``job_queue`` and ``job_definition`` inside the ``DbtDag`` operator.
+
+Refer to the getting started guide for details on how to set up a batch compute environment. 
+
+.. code-block:: python 
+
+    aws_batch_cosmos_dag = DbtDag(
+        project_config=ProjectConfig(
+            dbt_project_path = DBT_ROOT_PATH / DBT_PROJECT,
+        ),
+        profile_config = profile_config,
+        execution_config = ExecutionConfig(execution_mode=EXECUTION_MODE),
+        operator_args={
+                "aws_conn_id": "example_aws_conn_id",
+                "region_name": "us-east-1",
+                "job_name":"jaffle-shop",
+                "job_queue":"{{YOUR_JOB_QUEUE_ARN}},
+                "job_definition":"{{YOUR_JOB_DEFINITION_ARN}}",
+        },
+        # normal dag parameters
+        dag_id="example_aws_batch",
+        schedule="@daily",
+        start_date=datetime(2023, 1, 1),
+        catchup=False,
+        default_args={"retries": 0},
+    )
+
+
 Airflow Async
 -------------
 
@@ -359,7 +416,6 @@ This causes the BigQuery trigger to attempt accessing parameters of the Task Ins
       File "/Users/pankaj/Documents/astro_code/astronomer-cosmos/devenv/lib/python3.9/site-packages/airflow/providers/google/cloud/triggers/bigquery.py", line 102, in get_task_instance
         TaskInstance.dag_id == self.task_instance.dag_id,
     AttributeError: 'NoneType' object has no attribute 'dag_id'
-
 
 
 .. _invocation_modes:
