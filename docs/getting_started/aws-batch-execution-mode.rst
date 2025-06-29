@@ -5,7 +5,7 @@ AWS Batch Execution Mode
 
 This tutorial will guide you through the steps required to use AWS Batch as the Execution mode for your dbt code with Astronomer Cosmos. 
 
-.. figure:: https://github.com/jkdll/astronomer-cosmos/blob/add-aws-batch-execution-mode/docs/_static/aws_batch_cosmos_executor.svg
+.. figure:: https://github.com/jkdll/astronomer-cosmos/blob/add-aws-batch-execution-mode/docs/_static/aws_batch_cosmos_executor.png
     :width: 800
 
 Prerequisites
