@@ -27,7 +27,6 @@ logger = get_logger(__name__)
 
 DEFAULT_CONN_ID = "aws_default"
 DEFAULT_JOB_NAME = "dbt"
-DEFAULT_ENVIRONMENT_VARIABLES: dict[str, str] = {}
 DEFAULT_JOB_QUEUE = ""
 DEFAULT_JOB_DEFINITION = ""
 DEFAULT_TAGS: dict[str, str] = {}
@@ -38,6 +37,11 @@ try:
     from airflow.sdk.bases.operator import BaseOperator  # Airflow 3
 except ImportError:
     from airflow.models import BaseOperator  # Airflow 2
+
+try:
+    from airflow.sdk.bases.hooks.base import BaseHook # Airflow 3
+except ImportError:
+    from airflow.hooks.base import BaseHook # Airflow 2
 
 try:
     from airflow.providers.amazon.aws.operators.batch import BatchOperator
@@ -70,6 +74,9 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
             # Other Arguments
             environment_variables: dict[str, Any] | None = None,
             container_overrides: dict[str, Any] | None = None,
+            # container_overrides can be overriden with these paramaeters
+            vcpus: int = None,
+            memory: int = None,
             # 
             profile_config: ProfileConfig | None = None,
             command: list[str] | None = None,
@@ -80,8 +87,25 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
         self.job_name = job_name
         self.job_queue = job_queue
         self.job_definition = job_definition
-        self.environment_variables = environment_variables
+        self.environment_variables = environment_variables or {}
         self.container_overrides = container_overrides
+        self.vcpus = vcpus
+        self.memory = memory
+        # Set containerOverrides;
+        # Either take input dictionary or distinct arguments.
+        container_details = {}
+        if self.command:
+            container_details["command"] = self.command
+        if self.vcpus:
+            container_details["vcpus"] = self.vcpus
+        if self.memory:
+            container_details["memory"] = self.memory
+        if self.environment_variables:
+            container_details["environment"] = [{"name": key, "value": value} for key, value in self.environment_variables.items()]
+        self.container_overrides = {
+            **(self.container_overrides or {}),
+            **container_details
+        }
         kwargs.update(
             {
                 "aws_conn_id": aws_conn_id,
@@ -90,7 +114,7 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
                 "job_name": job_name,
                 "job_queue": job_queue,
                 "job_definition": job_definition,
-                "container_overrides": container_overrides
+                "container_overrides": self.container_overrides 
             }
         )
 
@@ -125,7 +149,7 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
                     pass
         AbstractDbtBase.__init__(self, **base_kwargs)
         BatchOperator.__init__(self, **operator_kwargs)
-    
+
     def build_and_run_cmd(self, 
                           context, 
                           cmd_flags, 
@@ -142,7 +166,8 @@ class DbtAwsBatchBaseOperator(AbstractDbtBase, BatchOperator):
         dbt_cmd, env_vars = self.build_cmd(context=context, cmd_flags=cmd_flags)
         #self.environment_variables = {**env_vars, **self.environment_variables}
         self.command = dbt_cmd
-
+        self.container_overrides['command'] = self.command
+        
 
 class DbtBuildAwsBatchOperator(DbtBuildMixin, DbtAwsBatchBaseOperator):
     """
