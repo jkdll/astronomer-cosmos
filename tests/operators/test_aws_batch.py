@@ -16,13 +16,21 @@ from cosmos.operators.aws_batch import (
     DbtTestAwsBatchOperator,
 )
 
-class ConcreteDbtAwsEcsOperator(DbtAwsBatchBaseOperator):
+class ConcreteDbtAwsBatchOperator(DbtAwsBatchBaseOperator):
     base_cmd = ["cmd"]
 
 def test_dbt_aws_batch_operator_add_global_flags() -> None:
     """
     Check if global flags are added correctly.
     """
+    dbt_base_operator = ConcreteDbtAwsBatchOperator(
+        aws_conn_id="",
+        region_name="",
+        verify=True,
+        job_name="",
+        job_queue="",
+        job_definition=""
+    )
     pass
 
 @patch("cosmos.operators.base.context_to_airflow_vars")
